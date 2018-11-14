@@ -1,0 +1,127 @@
+1、解释HahsMap的底层原理？
+	概念灌输：
+		* 数据结构中有数组和链表这两种结构来存储数据；
+		* 数组：数组的存储区间是连续的，但是占用内存严重，所以空间复杂度很大；但是数组的二分法查询时间复杂度很小O(1)；
+			特点：寻址容易、插入和删除困难；
+		* 链表：链表的存储区间是离散的，但是占用内存宽松，所以空间复杂度很小；但是链表的时间复杂度很大O(n)；
+			特点：寻址困难、插入和删除容易；
+
+	哈希表的诞生：
+		* 综合数组和链表的优点，摒弃缺点，哈希表的诞生既满足了数据查询方面的快速（数组的特性），占用空间也不大（链表的特性）；
+		* 哈希表可以说是数组链表，底层还是数组，但是这个数组的每一项就是一个链表；
+			* 在这个数组中，每个元素存储的其实是一个链表的头，元素的存储位置一般情况是通过hash(key)%len获得；
+			* 也就是元素的key的哈希值对数组长度取模得到，相同的模以链表的形式存储在相同的数组元素中；
+
+	HashMap的构造函数：
+		* HashMap实现了Map接口，继承了AbstractMap，其中Map接口定义了键映射到值的规则。而AbstractMap类提供了Map接口的骨干实现；
+		* HashMap的三个构造函数：
+			1. HashMap()：构造一个具有默认容量为（16）和默认加载因子（0.75）的空HashMap。
+			2. HashMap(int initialCapacity)：构造一个带指定容量和默认加载因子(0.75)的空HashMap。
+			3. HashMap(int initalCapacity, float loadFactor)：构造一个带指定初始容量和加载因子的HashMap。
+		* 每次初始化HahsMap的时候都会构造一个table数组 ，而table数组的元素为Entry节点。
+
+			代码实现：
+			static class Entry<K, V> implements Map.Entry<K, V> {
+				final K key;
+				V value;
+				Entry<K, V> next;
+				int hash;
+			}
+		* HashMap也可以说是一个数组链表，HashMap里面有一个非常重要的内部静态类--Entry，Entry的内部数据结构如上，所以说Entry是HashMap非常重要的一个Bean，因为所有的内容都存在Entry里面，HahsMap的本质可以理解为Entry[]数组。
+
+	HashMap.put(key, value):
+
+		* 代码实现：
+		public V put(K key, V value) {
+			// 当key为null，调用putForNullKey方法，保存null与table第一个位置中，这是HashMap允许为null的原因
+	        if (key == null) {
+	            return putForNullKey(value);
+	        }
+	        // 计算key的hash值
+	        int hash = hash(key.hashCode()); 
+			// 计算key hash 值在 table 数组中的位置，根据key的hashCode对数组的长度取模
+	        int i = indexFor(hash, table.length);
+	        // 从i出开始迭代 e,找到 key 保存的位置
+	        for (Entry<K, V> e = table[i]; e != null; e = e.next) {
+	            Object k;
+	            //判断该条链上是否有hash值相同的(key相同)
+	            //若存在相同，则直接覆盖value，返回旧value
+	            if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+	                V oldValue = e.value;    //旧值 = 新值
+	                e.value = value;
+	                e.recordAccess(this);
+	                return oldValue;     //返回旧值
+	            }
+	        }
+
+	        //修改次数增加1
+	        modCount++;
+	        //将key、value添加至i位置处
+	        addEntry(hash, key, value, i);
+	        return null;
+		}
+
+	HashMap.get(key):
+
+		* 代码实现：
+		public V get(Object key) {
+	        if (key == null) {
+	            return getForNullKey();
+	        }
+        	Entry<K,V> entry = getEntry(key);
+	        return null == entry ? null : entry.getValue();
+	    }
+
+	    final Entry<K,V> getEntry(Object key) {
+	        if (size == 0) {
+	            return null;
+	        }
+        	int hash = (key == null) ? 0 : hash(key);
+
+	        for (Entry<K,V> e = table[indexFor(hash, table.length)]; e != null; e = e.next) {
+	            Object k;
+	            if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k)))) {
+	                return e;
+	            }
+
+	        }
+	        return null;
+
+	    }
+
+
+	HashMap的遍历：
+		1、 通过Map.keySet来遍历key和value； 
+		2、 通过Map.entrySet使用iterator迭代器来遍历key和value；
+		3、 推荐（尤其是容量大的时候）使用Map.entrySet直接遍历key和value；
+		4、 通过Map.values()遍历所有的value，但是此种方法不能遍历key值；
+
+	HashMap的遍历总结：
+		使用HashMap的匿名内部类Entry遍历比使用keySet()效率要高很多，使用forEach循环时要注意不要在循环的过程中改变键值对的任何一方的值，否则出现哈希表的值没有随着键值的改变而改变，到时候在删除的时候会出现问题。 此外，entrySet比keySet快些。对于keySet其实是遍历了2次，一次是转为iterator，一次就从hashmap中取出key所对于的value。而entrySet只是遍历了第一次，他把key和value都放到了entry中，所以就快了。
+	
+	计算大于或等于某个数的最小的2的n次幂的数：
+
+	    public static void main(String[] args) {
+	        int MAXIMUM_CAPACITY = 1 << 30; // 为什么此处是1 << 30 而不是1 << 31次方呢，因为int的占用四个字节，最大正整数是1 << 31  - 1 最大的二次幂却是 1 << 30
+	        int n = 33;
+	        // 计算大于或等于n的最大的2的幂次方
+	        n -= 1; // 首次减一操作目的是为了防止n原本就是2的幂次方，通过下面右移从而导致原来的数翻倍了
+	        n |= n >>> 1; // 第一次右移一位的目的是使得原来的数的最高位1的后面紧跟1位1；即11****
+	        n |= n >>> 2; // 第二次右移二位的目的是使得原来的数的最高位11的后面紧跟2位1；即1111****
+	        n |= n >>> 4; // 第三次右移四位的目的是使得原来的数的最高位1111的后面紧跟4位1；即11111111****
+	        n |= n >>> 8; // 第四次右移八位的目的是使得原来的数的最高位11111111的后面紧跟8位1；即1111111111111111****
+	        n |= n >>> 16; // 第五次右移十六位的目的是使得原来的数的最高位即1111111111111111的后面紧跟16位1；即即11111111111111111111111111111111****
+	        // 以上的运算结果都是2的幂次方减一，下面通过阈值来求得最终结果
+	        // 最终结果就是计算大于或等于n的最小的2的幂次方
+	        n = (n < 0) ? 1 : (n > MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+	        System.out.println(n);
+	    }
+
+2、HashMap中的Hash碰撞？
+
+	* 产生的原因：即多个key的hashCode值产生了冲突，即HashCode值相同；
+	* 解决Hash碰撞的方法：
+		* 链表法：链表法就是将相同的hash值对象组织成一个链表放在hash值对应的槽位：HashMap采用的是链表法来解决Hash碰撞；
+		* 开放地址法：开放地址法是通过一个探测算法，当某个槽位被占据的情况下，继续查找下一个槽位。
+		* 再哈希法：
+		* 建立一个公共溢出区；
